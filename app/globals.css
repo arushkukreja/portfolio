@@ -390,6 +390,18 @@ body, button, a { font-family: var(--sans); }
 .nav a:hover { color: var(--blue); }
 .header-button { border: 1px solid var(--ink); border-radius: 0; background: transparent; color: var(--ink); box-shadow: 3px 3px 0 var(--ink); }
 .header-button:hover { border-color: var(--blue); background: var(--blue); color: var(--paper); box-shadow: 3px 3px 0 var(--ink); }
+.contact-trigger[data-state="open"] { background: var(--ink); color: var(--paper); }
+.contact-trigger[data-state="open"] > svg { transform: rotate(180deg); }
+.contact-dropdown { z-index: 100; width: 310px; max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--ink); background: var(--paper); color: var(--ink); box-shadow: 5px 5px 0 var(--ink); font-family: var(--sans); }
+.contact-dropdown-label { padding: 10px 12px; color: var(--ink-soft); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; }
+.contact-dropdown-item { display: flex; align-items: center; gap: 12px; min-height: 66px; padding: 12px; color: var(--ink); text-decoration: none; outline: none; cursor: pointer; }
+.contact-dropdown-item + .contact-dropdown-item { border-top: 1px solid var(--line-light); }
+.contact-dropdown-item > svg { width: 18px; height: 18px; flex-shrink: 0; }
+.contact-dropdown-item > svg:last-child { margin-left: auto; width: 15px; height: 15px; }
+.contact-dropdown-item span { font-size: 13px; font-weight: 700; }
+.contact-dropdown-item small { display: block; margin-top: 4px; color: var(--ink-soft); font-size: 10px; font-weight: 400; }
+.contact-dropdown-item[data-highlighted] { background: var(--ink); color: var(--paper); }
+.contact-dropdown-item[data-highlighted] small { color: var(--paper); }
 .hero h1 { color: var(--ink); font-weight: 700; letter-spacing: -.075em; }
 .hero h1 em { font-style: normal; text-decoration: underline; text-decoration-thickness: .055em; text-underline-offset: .12em; }
 .hero-intro { color: rgba(23,23,19,.7); }

@@ -12,6 +12,7 @@ import {
   type ExperienceItem,
   type WorkflowItem,
 } from "@/components/portfolio-accordions";
+import { ContactDropdown } from "@/components/contact-dropdown";
 import { TypewriterText } from "@/components/typewriter-text";
 
 const impact = [
@@ -298,7 +299,7 @@ export default function Home() {
     <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(personSchema) }} />
     <section className="hero" id="top">
       <div className="hero-grid" aria-hidden="true" />
-      <header className="site-header shell"><a className="monogram" href="#top" aria-label="Arush Kukreja, home">AK<span>.</span></a><nav className="nav" aria-label="Primary navigation"><a href="#work">Experience</a><a href="#ai-lab">AI systems</a><a href="#projects">Products</a><a href="#signals">Writing</a></nav><Button asChild variant="outline" size="sm" className="header-button"><a href="#connect">Let&apos;s connect <ArrowUpRight aria-hidden="true" /></a></Button></header>
+      <header className="site-header shell"><a className="monogram" href="#top" aria-label="Arush Kukreja, home">AK<span>.</span></a><nav className="nav" aria-label="Primary navigation"><a href="#work">Experience</a><a href="#ai-lab">AI systems</a><a href="#projects">Products</a><a href="#signals">Writing</a></nav><ContactDropdown /></header>
       <div className="hero-content shell"><div className="hero-copy"><h1>I build at the intersection of <em>strategy, product, and AI.</em></h1><TypewriterText className="hero-intro" text="Fraud strategist and product builder using AI to transform complex problems into practical systems, useful products, and smarter ways of working." /><div className="hero-actions"><Button asChild size="lg" className="primary-action"><a href="#ai-lab">Explore the systems <ArrowDown aria-hidden="true" /></a></Button><Button asChild size="lg" variant="outline" className="secondary-action"><a href="/Arush-Kukreja-Resume.pdf" download><Download aria-hidden="true" />Résumé</a></Button></div></div><div className="hero-signal" role="group" aria-label="Core focus areas"><a className="focus-box focus-box-one" href="#work" aria-label="Explore fraud strategy experience"><span>01</span><strong>Fraud strategy</strong><small>Controls, decisions, and trust</small></a><a className="focus-box focus-box-two" href="#projects" aria-label="Explore products"><span>02</span><strong>Product building</strong><small>From problem to working product</small></a><a className="focus-box focus-box-three" href="#ai-lab" aria-label="Explore applied AI systems"><span>03</span><strong>Applied AI</strong><small>Useful agents and automation</small></a></div></div><div className="hero-scroll shell"><span>Selected impact</span><ArrowDown aria-hidden="true" /></div>
     </section>
 
