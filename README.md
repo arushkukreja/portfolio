@@ -8,6 +8,26 @@ Drizzle support.
 
 - Node.js `>=22.13.0`
 
+## Vercel deployment
+
+The portfolio at https://www.arushkukreja.com deploys from GitHub `main`.
+`vercel.json` selects the Nitro server adapter and generates the Vercel Build
+Output API bundle in `.vercel/output`. Do not deploy `dist` as a static Vite
+site: it contains Cloudflare Worker output and has no static homepage.
+
+To check the Vercel bundle locally:
+
+```bash
+NITRO_PRESET=vercel npx vite build
+node --test tests/vercel-output.test.mjs
+```
+
+The original `npm run build` remains the Cloudflare/Sites build. On Vercel,
+images use their original static files. Booking requires a durable database
+adapter in addition to the Google credentials described in `BOOKING-SETUP.md`;
+the Cloudflare D1 binding does not transfer to Vercel. Until connected, booking
+returns an unavailable message with an email fallback and creates no events.
+
 ## Quick Start
 
 ```bash
