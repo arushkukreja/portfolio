@@ -595,3 +595,10 @@ body, button, a { font-family: var(--sans); }
   .focus-box { animation: none !important; }
   .focus-box-one { border-color: var(--blue); border-left-width: 6px; background: rgba(255,250,240,.98); box-shadow: 7px 7px 0 var(--blue); transform: translate(-3px, -3px); }
 }
+
+/* Policy links stay readable and wrap on narrow screens. */
+.legal-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; }
+.legal-links a { text-decoration: underline; text-underline-offset: 4px; }
+.legal-links a:hover { color: var(--blue); }
+.legal-links a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.footer-bottom > div { flex-wrap: wrap; }

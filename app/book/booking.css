@@ -48,3 +48,10 @@
 .booking-privacy { max-width: 740px; margin: auto; padding: 60px 0; font-size: 14px; line-height: 1.9; }.booking-privacy h1 { font-size: 30px; font-weight: bold; }.booking-privacy p { margin: 24px 0; }
 @media (max-width: 760px) { .booking-header { height: 76px; font-size: 11px; }.booking-layout { grid-template-columns: 1fr; padding: 36px 0 45px; gap: 28px; }.booking-intro h1 { font-size: 35px; }.booking-facts { display: grid; grid-template-columns: 1fr 1fr; gap: 0 20px; margin-top: 24px; }.booking-facts > div { display: block; }.booking-facts dt { margin-bottom: 5px; }.booking-facts dd { font-size: 12px; }.booking-aside-note { display: none; }.booking-card { min-height: 350px; }.booking-footer { flex-direction: column; }.booking-times button { min-height: 48px; } }
 @media (prefers-reduced-motion: reduce) { .booking-page * { scroll-behavior: auto !important; } }
+
+.booking-footer { flex-wrap: wrap; }
+.booking-privacy h2 { margin: 36px 0 12px; font-size: 20px; font-weight: 700; line-height: 1.4; }
+.booking-privacy a { text-decoration: underline; text-underline-offset: 4px; overflow-wrap: anywhere; }
+.booking-privacy a:hover { color: var(--blue); }
+.booking-privacy a:focus-visible { outline: 2px solid var(--blue); outline-offset: 4px; }
+.booking-privacy .legal-date { margin-top: 10px; color: var(--ink-soft); font-size: 12px; }
