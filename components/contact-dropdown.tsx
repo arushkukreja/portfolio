@@ -1,5 +1,7 @@
 "use client";
 
+import { EmailLink } from "@/components/email-link";
+
 import { ArrowUpRight, CalendarDays, ChevronDown, Users, Mail } from "lucide-react";
 import { DropdownMenu } from "radix-ui";
 
@@ -22,9 +24,9 @@ export function ContactDropdown() {
             </a>
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild>
-            <a className="contact-dropdown-item" href="mailto:arushkukrejaa@gmail.com">
+            <EmailLink className="contact-dropdown-item">
               <Mail aria-hidden="true" /><span>Send an email<small>Start a conversation</small></span><ArrowUpRight aria-hidden="true" />
-            </a>
+            </EmailLink>
           </DropdownMenu.Item>
           <DropdownMenu.Item asChild>
             <a className="contact-dropdown-item" href="https://www.linkedin.com/in/arushkukreja" target="_blank" rel="noopener noreferrer">

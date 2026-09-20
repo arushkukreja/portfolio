@@ -1,7 +1,9 @@
 "use client";
 
+import { EmailLink } from "@/components/email-link";
+
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
-import { CONTACT_EMAIL, dateKey, type Slot } from "../lib/scheduling";
+import { dateKey, type Slot } from "../lib/scheduling";
 import { initBotId } from "botid/client/core";
 
 type Confirmation = Slot & { meetUrl: string | null; meetStatus: "ready" | "pending" | "failed" };
@@ -84,7 +86,7 @@ export function BookingForm({ botProtectionEnabled = false }: { botProtectionEna
   }
 
   const days = [...new Set(slots.map((s) => dateKey(new Date(s.start), timeZone || "America/New_York")))];
-  const emailLink = <a href={`mailto:${CONTACT_EMAIL}`}>Email Arush ↗</a>;
+  const emailLink = <EmailLink>Email Arush ↗</EmailLink>;
   if (confirmed) return <div className="booking-success">
     <span className="booking-success-mark" aria-hidden="true">✓</span><p className="booking-eyebrow">YOU’RE BOOKED</p>
     <h2 ref={focusTarget} tabIndex={-1}>See you soon, {name.split(" ")[0]}.</h2>

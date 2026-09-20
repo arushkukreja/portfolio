@@ -1,0 +1,16 @@
+.contact-email-content { max-width: 680px; margin: 0 auto; padding: 64px 0 72px; }
+.contact-email-content h1 { margin: 0 0 22px; font-size: clamp(30px, 4vw, 48px); font-weight: 700; letter-spacing: -.055em; line-height: 1.15; }
+.contact-email-intro { margin: 0 0 30px; color: var(--ink-soft); font-size: 14px; line-height: 1.8; }
+.contact-email-card { min-height: 0; }
+.email-address { font-size: clamp(15px, 2.4vw, 23px); font-weight: 700; overflow-wrap: anywhere; user-select: all; margin: 0 0 18px; }
+.email-copy { border: 1px solid var(--ink); background: var(--ink); color: var(--paper); padding: 13px 16px; font-size: 12px; min-height: 44px; }
+.email-copy:hover { background: var(--blue); border-color: var(--blue); }
+.email-copy-status { min-height: 1.6em; margin: 10px 0 22px; font-size: 11px; line-height: 1.6; color: var(--ink-soft); }
+.email-provider-options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.email-provider-options a { display: flex; flex-direction: column; gap: 10px; padding: 18px; border: 1px solid var(--line-light); }
+.email-provider-options a:hover { border-color: var(--blue); background: var(--paper); }
+.email-provider-options strong { font-size: 12px; line-height: 1.5; }
+.email-provider-options span { font-size: 11px; color: var(--ink-soft); line-height: 1.6; }
+.contact-other-option { margin-top: 30px; font-size: 12px; line-height: 1.9; color: var(--ink-soft); }
+.contact-other-option a { color: var(--ink); text-decoration: underline; text-underline-offset: 4px; }
+@media (max-width: 480px) { .contact-email-content { padding-block: 40px; }.email-provider-options { grid-template-columns: 1fr; } }

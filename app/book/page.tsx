@@ -1,3 +1,4 @@
+import { EmailLink } from "@/components/email-link";
 import { HomeLink } from "@/components/home-link";
 import type { Metadata } from "next";
 import { LegalLinks } from "@/components/legal-links";
@@ -19,6 +20,6 @@ export default function BookPage() {
       </aside>
       <section className="booking-card" aria-label="Book a call"><BookingForm botProtectionEnabled={process.env.VERCEL === "1"} /></section>
     </div>
-    <footer className="booking-footer"><span>Strategy, product, and AI.</span><LegalLinks /><a href="mailto:arushkukrejaa@gmail.com">Prefer email? Get in touch ↗</a></footer>
+    <footer className="booking-footer"><span>Strategy, product, and AI.</span><LegalLinks /><EmailLink>Prefer email? Get in touch ↗</EmailLink></footer>
   </main>;
 }
