@@ -142,7 +142,7 @@ async function book(request: Request, env: BookingEnv, now: Date) {
   let body: unknown;
   try { body = JSON.parse(raw); } catch { throw new ApiError(400, "Please check your booking details."); }
   const input = parseBooking(body);
-  if (!input) throw new ApiError(400, "Please enter a valid name, email, and time.");
+  if (!input) throw new ApiError(400, "Please enter a valid name, email, time, and discussion topic.");
   const fingerprint = await digest(JSON.stringify(input), env.BOOKING_HASH_SECRET!);
   const existing = await env.DB!.prepare("SELECT * FROM call_bookings WHERE request_id = ?").bind(input.requestId).first<StoredBooking>();
   if (existing && existing.fingerprint !== fingerprint) throw new ApiError(409, "This booking request has changed. Please refresh the page.");

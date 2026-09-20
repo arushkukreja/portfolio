@@ -42,12 +42,12 @@ export function parseBooking(value: unknown): BookingInput | null {
   const b = value as Record<string, unknown>;
   if (b.website || typeof b.requestId !== "string" || !/^[a-f0-9-]{36}$/.test(b.requestId)
     || typeof b.start !== "string" || typeof b.name !== "string" || typeof b.email !== "string"
-    || typeof b.timeZone !== "string" || (b.notes !== undefined && typeof b.notes !== "string")) return null;
+    || typeof b.timeZone !== "string" || typeof b.notes !== "string") return null;
   const name = b.name.trim();
   const email = b.email.trim().toLowerCase();
-  const notes = (b.notes as string || "").trim();
+  const notes = b.notes.trim();
   if (!name || name.length > 100 || [...name].some((c) => c.charCodeAt(0) < 32) || email.length > 254
-    || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) || notes.length > 1500) return null;
+    || !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(email) || !notes || notes.length > 1500) return null;
   try { new Intl.DateTimeFormat("en-US", { timeZone: b.timeZone }); } catch { return null; }
   return { requestId: b.requestId, start: b.start, name, email, notes, timeZone: b.timeZone };
 }

@@ -78,6 +78,17 @@ test("unconfigured scheduler fails closed", async () => {
   const res = await handleBooking(new Request("https://portfolio.example/api/booking/availability"), {}, now);
   assert.equal(res.status, 503); assert.equal((await res.json()).slots, undefined);
 });
+test("a discussion topic is required before any Calendar request", async (t) => {
+  const f = fixture(t);
+  for (const notes of [undefined, null, "", " \n\t ", "x".repeat(1501)]) {
+    const response = await handleBooking(request(payload({ notes })), f.env, now);
+    assert.equal(response.status, 400);
+    assert.match((await response.json()).error, /discussion topic/);
+  }
+  assert.equal(globalThis.fetch.mock.callCount(), 0);
+  assert.equal(f.insertions(), 0);
+  assert.equal(parseBooking(payload({ notes: "  Product conversation  " })).notes, "Product conversation");
+});
 test("calendar failures never become available slots", async (t) => {
   const f = fixture(t, { calendarError: true });
   const res = await handleBooking(new Request("https://portfolio.example/api/booking/availability", { headers: { "CF-Connecting-IP": "192.0.2.10" } }), f.env, now);

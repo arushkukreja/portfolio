@@ -61,6 +61,7 @@ export function BookingForm({ botProtectionEnabled = false }: { botProtectionEna
   async function reserve(event: FormEvent) {
     event.preventDefault();
     if (!slot || submitting) return;
+    if (!notes.trim()) { setError("Please share what you’d like to discuss."); return; }
     setSubmitting(true); setError("");
     payload.current ??= { requestId: crypto.randomUUID(), start: slot.start, name, email, notes, timeZone, website };
     try {
@@ -111,9 +112,9 @@ export function BookingForm({ botProtectionEnabled = false }: { botProtectionEna
       <div className="booking-selection"><strong>{formatDate(slot.start, timeZone)}</strong><span>{formatTime(slot.start, timeZone)}–{formatTime(slot.end, timeZone)} · {timeZone.replaceAll("_", " ")}</span><button type="button" onClick={() => { setSlot(null); setLoading(true); payload.current = null; setError(""); }} disabled={submitting || uncertain}>Change time</button></div>
       <fieldset disabled={submitting || uncertain} className="booking-fields"><label>Your name<input name="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={100} /></label>
       <label>Email address<input name="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required maxLength={254} /></label>
-      <label>What would you like to discuss? <small>(optional)</small><textarea name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={1500} rows={3} /></label>
+      <label>What would you like to discuss?<textarea name="notes" value={notes} onChange={(e) => setNotes(e.target.value)} required maxLength={1500} rows={3} /></label>
       <label className="booking-trap" aria-hidden="true">Website<input name="website" value={website} onChange={(e) => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" /></label></fieldset>
-      <p className="booking-small">Your details are shared with Arush and Google to arrange this call. No mailing list. <a href="/book/privacy">Privacy policy</a>. By confirming a call, you agree to the <a href="/book/terms">Terms of service</a>.</p>
+      <p className="booking-small">Your details are shared with Arush and Google to arrange this call. No mailing list. By confirming a call, you agree to the <a href="/book/terms">Terms of service</a> and <a href="/book/privacy">Privacy policy</a>.</p>
       <button type="submit" className="booking-primary" disabled={submitting}>{submitting ? "Confirming your call…" : uncertain ? "Check my booking →" : "Confirm call →"}</button>
     </form>}
     {error && <div className="booking-error" role="alert"><p>{error}</p>{!slot && <button type="button" onClick={() => { setLoading(true); setError(""); setRevision((n) => n + 1); }}>Try again</button>} {emailLink}</div>}
