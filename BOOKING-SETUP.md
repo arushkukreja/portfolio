@@ -9,14 +9,26 @@ Booking page: `/book`. Calls are 30 minutes, starting every half hour from 10 a.
 3. Create an OAuth client of type **Web application**, with authorized redirect URI `http://localhost:4545/oauth/callback`. Download its JSON and keep it outside the source repository.
 4. Move the OAuth app from Testing to In production before the permanent connection. Google expires Calendar refresh tokens issued in Testing after seven days. Follow any Google verification or consent requirements that apply to the account; do not bypass warnings automatically.
 5. Run `node scripts/connect-google.mjs /absolute/path/to/downloaded-client.json` and open `http://localhost:4545`. Sign into the host's account and grant both requested Calendar permissions. This uses `calendar.events.owned` and `calendar.freebusy` and saves `.env.booking` privately, without printing tokens or overwriting an existing connection.
-6. Save the values from `.env.booking` in the existing Sites project's production environment. Mark `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, and `BOOKING_HASH_SECRET` as secrets. Never put them in public frontend variables, hosting.json, Git, screenshots, or chat.
-7. Deploy the saved source version to apply the environment and D1 migrations, then verify real availability and a booking the owner explicitly approves.
+6. Save the values from `.env.booking` in the Vercel `portfolio` project's **production** environment using `vercel env add`. Mark `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, and `BOOKING_HASH_SECRET` as secrets. Pass values through stdin, never command-line arguments. Never put them in public frontend variables, hosting.json, Git, screenshots, or chat.
+7. Apply the Postgres migrations below, then push the saved source version to GitHub `main` to deploy. Verify real availability and a booking the owner explicitly approves.
 
 The required environment names are `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_CALENDAR_ID` (normally `primary`), `BOOKING_HASH_SECRET`, and `BOOKING_ENABLED=true`. Optional `GOOGLE_BUSY_CALENDAR_IDS` is a comma-separated list of additional calendars that must also be free. The host's primary calendar alone does not include every other calendar displayed in their Google Calendar UI.
 
 ## Hosting and behavior
 
-`.openai/hosting.json` requests the existing hosting platform's D1 binding `DB`; generated Drizzle migrations define cross-instance slot reservations and short-lived abuse limits. The public endpoints fail closed if credentials, database, or Calendar access are unavailable. They never return mock availability. Before connection, the page offers email contact.
+Production uses the Vercel Marketplace Neon resource `portfolio-bookings` on its free plan, in the Washington region, connected only to production. `DATABASE_URL` is the pooled runtime connection and `DATABASE_URL_UNPOOLED` is the direct migration connection. The server-only Postgres adapter preserves parameterized queries and returns the affected-row count used for the reservation lock. Vercel's trusted forwarding header supplies the rate-limit address; a visitor-supplied Cloudflare header is ignored there.
+
+The schema lives in `db/postgres-schema.ts`, and Drizzle migration history is in `drizzle-postgres/`. To generate and apply future migrations:
+
+```bash
+npx drizzle-kit generate --config drizzle.postgres.config.ts
+vercel env pull .env.production.local --environment=production --yes
+node --env-file=.env.production.local scripts/migrate-booking-postgres.mjs
+```
+
+Review and test schema changes before applying them to a database with live bookings. Keep downloaded configuration files private and Git-ignored. Preview deployments have no production calendar credentials. The original Cloudflare target still uses `.openai/hosting.json`, its D1 binding `DB`, and the SQLite migrations under `drizzle/`.
+
+The public endpoints fail closed if credentials, database, or Calendar access are unavailable. They never return mock availability. Before connection, the page offers email contact.
 
 Google Calendar sends invitation updates (`sendUpdates=all`) and requests a unique Google Meet conference per event. Guests may need to accept the invitation before it appears in their calendar. Some Google accounts can delay or refuse conference creation; the confirmation does not claim a link exists until Google provides it. No separate paid scheduler or email service is used. Standard Calendar API use is available at no additional cost; existing hosting/database limits still apply.
 
@@ -26,6 +38,6 @@ Cancel/reschedule requests go by reply to the invitation or email in this first 
 
 ## Checks
 
-Run `node --test tests/booking.test.mjs`, `npm run build`, `npm run lint`, and the existing rendered-HTML tests after building. Test fixtures are confined to the tests; production always calls Google.
+Run `node --test tests/booking.test.mjs`, `NITRO_PRESET=vercel npx vite build`, `node --test tests/vercel-output.test.mjs`, `npm run lint`, and `npx tsc --noEmit`. The opt-in `tests/booking-postgres.test.mjs` uses `BOOKING_DATABASE_TEST_URL` to test simultaneous claims through independent database connections, then removes its synthetic test rows. It sends no invitations. Test fixtures are confined to tests; production always calls Google.
 
 References: [Google Calendar quota and pricing](https://developers.google.com/workspace/calendar/api/guides/quota), [event insertion](https://developers.google.com/workspace/calendar/api/v3/reference/events/insert), [Google OAuth web-server flow](https://developers.google.com/identity/protocols/oauth2/web-server).

@@ -8,6 +8,7 @@ interface Statement {
 }
 export interface BookingEnv {
   DB?: { prepare(sql: string): Statement };
+  VERCEL?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_REFRESH_TOKEN?: string;
@@ -80,15 +81,18 @@ function confirmation(event: GoogleEvent, slot: Slot) {
 }
 const escapeText = (text: string) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 async function rateLimit(request: Request, env: BookingEnv, now: Date) {
-  // Cloudflare overwrites this header at ingress. Only a keyed hash is stored.
-  const address = request.headers.get("CF-Connecting-IP");
+  // Trust the deployed platform's ingress header, never a visitor-supplied
+  // Cloudflare header on Vercel. Only a keyed hash is stored.
+  const address = env.VERCEL === "1"
+    ? request.headers.get("x-vercel-forwarded-for") || request.headers.get("x-forwarded-for")
+    : request.headers.get("CF-Connecting-IP");
   if (!address) {
     if (!['localhost', '127.0.0.1'].includes(new URL(request.url).hostname)) throw new ApiError(503, unavailable);
     return;
   }
   const bucket = Math.floor(now.getTime() / 3600000);
   const key = await digest(`${bucket}:${address}`, env.BOOKING_HASH_SECRET!);
-  const row = await env.DB!.prepare("INSERT INTO booking_rate_limits (key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = count + 1 RETURNING count")
+  const row = await env.DB!.prepare("INSERT INTO booking_rate_limits (key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = booking_rate_limits.count + 1 RETURNING count")
     .bind(key, (bucket + 2) * 3600000).first<{ count: number }>();
   if (!row || row.count > 10) throw new ApiError(429, "Too many booking attempts. Please try again later or email Arush.");
 }
@@ -121,7 +125,7 @@ async function book(request: Request, env: BookingEnv, now: Date) {
   const busy = await busyTimes(env, token, [slot]);
   if (busy.some((b) => overlaps(slot, b))) throw new ApiError(409, "That time was just taken. Please choose another.");
   const eventId = crypto.randomUUID().replaceAll("-", "");
-  const claim = await env.DB!.prepare("INSERT INTO call_bookings (request_id, start, end, fingerprint, event_id, state, created_at) VALUES (?, ?, ?, ?, ?, 'pending', ?) ON CONFLICT DO NOTHING")
+  const claim = await env.DB!.prepare('INSERT INTO call_bookings (request_id, start, "end", fingerprint, event_id, state, created_at) VALUES (?, ?, ?, ?, ?, \'pending\', ?) ON CONFLICT DO NOTHING')
     .bind(input.requestId, slot.start, slot.end, fingerprint, eventId, now.getTime()).run();
   if (!claim.meta.changes) throw new ApiError(409, "That time was just selected. Please refresh availability.");
   // The unique start constraint is the cross-instance lock. Recheck Google after it.
@@ -170,9 +174,9 @@ export async function handleBooking(request: Request, env: BookingEnv, now = new
       const slots = candidateSlots(now);
       const token = await accessToken(env);
       const busy = await busyTimes(env, token, slots);
-      const held = await env.DB!.prepare("SELECT start, end FROM call_bookings WHERE end > ?").bind(now.toISOString()).all<Slot>();
+      const held = await env.DB!.prepare('SELECT start, "end" FROM call_bookings WHERE "end" > ?').bind(now.toISOString()).all<Slot>();
       // Keep past reservation metadata only for 30 days; it contains no plaintext guest data.
-      await env.DB!.prepare("DELETE FROM call_bookings WHERE end < ?").bind(new Date(now.getTime() - 30 * 86400000).toISOString()).run();
+      await env.DB!.prepare('DELETE FROM call_bookings WHERE "end" < ?').bind(new Date(now.getTime() - 30 * 86400000).toISOString()).run();
       await env.DB!.prepare("DELETE FROM booking_rate_limits WHERE expires_at < ?").bind(now.getTime()).run();
       return json({ slots: slots.filter((s) => ![...busy, ...held.results].some((b) => overlaps(s, b))), hostTimeZone: HOST_TIME_ZONE, duration: 30 });
     }

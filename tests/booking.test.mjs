@@ -119,3 +119,21 @@ test("migration includes database-enforced uniqueness", async () => {
   const db = new DatabaseSync(":memory:");
   try { db.exec(sql); assert.ok(db.prepare("SELECT name FROM sqlite_master WHERE name = 'call_bookings_start_unique'").get()); } finally { db.close(); }
 });
+
+test("Vercel reservations use its trusted IP header and ignore forged Cloudflare headers", async (t) => {
+  const f = fixture(t);
+  f.env.VERCEL = "1";
+  const missing = await handleBooking(request(payload()), f.env, now);
+  assert.equal(missing.status, 503);
+  assert.equal(f.insertions(), 0);
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const res = await handleBooking(request(payload({ start: "2026-10-01T14:00:00.000Z" }), {
+      "x-vercel-forwarded-for": "192.0.2.20", "CF-Connecting-IP": `192.0.2.${attempt}`,
+    }), f.env, now);
+    assert.equal(res.status, 409);
+  }
+  const limited = await handleBooking(request(payload(), { "x-vercel-forwarded-for": "192.0.2.20", "CF-Connecting-IP": "192.0.2.99" }), f.env, now);
+  assert.equal(limited.status, 429);
+  const accepted = await handleBooking(request(payload(), { "x-forwarded-for": "192.0.2.21" }), f.env, now);
+  assert.equal(accepted.status, 201);
+});

@@ -23,10 +23,11 @@ node --test tests/vercel-output.test.mjs
 ```
 
 The original `npm run build` remains the Cloudflare/Sites build. On Vercel,
-images use their original static files. Booking requires a durable database
-adapter in addition to the Google credentials described in `BOOKING-SETUP.md`;
-the Cloudflare D1 binding does not transfer to Vercel. Until connected, booking
-returns an unavailable message with an email fallback and creates no events.
+images use their original static files. Booking uses Neon Postgres on Vercel,
+with a database-enforced unique reservation per start time. Setup and migration
+instructions are in `BOOKING-SETUP.md`. The Cloudflare build retains its D1
+binding. Missing database or Google credentials produce an unavailable message
+with an email fallback and create no events.
 
 ## Quick Start
 
