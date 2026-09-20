@@ -17,7 +17,7 @@ export default function BookPage() {
         <dl className="booking-facts"><div><dt>WITH</dt><dd>Arush Kukreja</dd></div><div><dt>DURATION</dt><dd>30 minutes</dd></div><div><dt>LOCATION</dt><dd>Google Meet</dd></div><div><dt>AVAILABILITY</dt><dd>Every day · next 7 days<br /><small>10 a.m.–2 p.m. Eastern Time</small></dd></div></dl>
         <p className="booking-aside-note">Pick a time, share a little context, and I’ll see you there.</p>
       </aside>
-      <section className="booking-card" aria-label="Book a call"><BookingForm /></section>
+      <section className="booking-card" aria-label="Book a call"><BookingForm botProtectionEnabled={process.env.VERCEL === "1"} /></section>
     </div>
     <footer className="booking-footer"><span>Strategy, product, and AI.</span><LegalLinks /><a href="mailto:arushkukrejaa@gmail.com">Prefer email? Get in touch ↗</a></footer>
   </main>;

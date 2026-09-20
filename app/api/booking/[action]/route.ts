@@ -1,5 +1,6 @@
 import { handleBooking, type BookingEnv } from "@/lib/booking-api";
 import { createPostgresBookingDatabase } from "@/lib/booking-postgres";
+import { verifyBookingBrowser } from "@/lib/booking-bot-protection";
 
 // Cloudflare handles these paths in worker/index.ts with its D1 binding.
 // Initialize lazily so builds and unconfigured previews need no credentials.
@@ -11,10 +12,18 @@ function environment(): BookingEnv {
   return { ...process.env, DB: database };
 }
 
-export function GET(request: Request) {
+export async function GET(request: Request) {
+  if (process.env.VERCEL === "1") {
+    const rejected = await verifyBookingBrowser();
+    if (rejected) return rejected;
+  }
   return handleBooking(request, environment());
 }
 
-export function POST(request: Request) {
+export async function POST(request: Request) {
+  if (process.env.VERCEL === "1") {
+    const rejected = await verifyBookingBrowser();
+    if (rejected) return rejected;
+  }
   return handleBooking(request, environment());
 }

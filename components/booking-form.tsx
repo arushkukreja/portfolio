@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { CONTACT_EMAIL, dateKey, type Slot } from "../lib/scheduling";
+import { initBotId } from "botid/client/core";
 
 type Confirmation = Slot & { meetUrl: string | null; meetStatus: "ready" | "pending" | "failed" };
 type RequestDetails = { requestId: string; start: string; name: string; email: string; notes: string; timeZone: string; website: string };
@@ -11,7 +12,17 @@ const subscribeTimezone = () => () => {};
 const detectTimezone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || "America/New_York";
 const serverTimezone = () => "";
 
-export function BookingForm() {
+export function BookingForm({ botProtectionEnabled = false }: { botProtectionEnabled?: boolean }) {
+  // This effect runs before the availability effect below. Local Cloudflare
+  // development has no Vercel challenge proxy and keeps its existing behavior.
+  useEffect(() => {
+    if (!botProtectionEnabled || window.IS_HUMAN_INITIALIZED) return;
+    initBotId({ protect: [
+      { path: "/api/booking/availability", method: "GET", advancedOptions: { checkLevel: "basic" } },
+      { path: "/api/booking/reserve", method: "POST", advancedOptions: { checkLevel: "basic" } },
+    ] });
+    window.IS_HUMAN_INITIALIZED = true;
+  }, [botProtectionEnabled]);
   const detectedTimezone = useSyncExternalStore(subscribeTimezone, detectTimezone, serverTimezone);
   const [chosenTimezone, setTimeZone] = useState("");
   const timeZone = chosenTimezone || detectedTimezone;
@@ -54,12 +65,13 @@ export function BookingForm() {
     payload.current ??= { requestId: crypto.randomUUID(), start: slot.start, name, email, notes, timeZone, website };
     try {
       const res = await fetch("/api/booking/reserve", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload.current), signal: AbortSignal.timeout(45000) });
-      const data = await res.json() as Confirmation & { error?: string };
+      const data = await res.json() as Confirmation & { error?: string; code?: string };
       if (!res.ok) {
         if (res.status === 409 && /another|refresh availability/.test(data.error || "")) {
           setSlot(null); setLoading(true); payload.current = null; setUncertain(false); setRevision((n) => n + 1);
-        } else if ([400, 403, 413, 415, 429].includes(res.status)) {
-          payload.current = null; setUncertain(false);
+        } else if ([400, 403, 413, 415, 429].includes(res.status) || data.code === "BROWSER_VERIFICATION_UNAVAILABLE") {
+          // A rejected check cannot undo an earlier uncertain Calendar write.
+          if (!uncertain) { payload.current = null; setUncertain(false); }
         } else setUncertain(true);
         throw new Error(data.error || "We couldn’t confirm your booking.");
       }

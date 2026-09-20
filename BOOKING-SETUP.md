@@ -30,6 +30,14 @@ Review and test schema changes before applying them to a database with live book
 
 The public endpoints fail closed if credentials, database, or Calendar access are unavailable. They never return mock availability. Before connection, the page offers email contact.
 
+## Spam protection
+
+On Vercel, both availability and reservation endpoints require BotID Basic browser verification before any database or Calendar calls. Basic is the free tier; the client and server explicitly select it. The booking component initializes the browser challenge before fetching availability, and `vercel.json` routes the challenge through the same domain. No user-agent allowlist, public bypass token, or automatic acceptance of verified crawlers is used. Verification errors fail closed with an email fallback. Local Cloudflare development does not call Vercel BotID.
+
+Shared database counters enforce 5 reservation attempts per IP per 10-minute window, 10 per IP per hour, and 3 new valid-slot attempts per email per UTC day. Retries for the same reservation do not consume the email quota again. Gmail dot/plus aliases share an email counter. Availability is limited to 60 refreshes per IP per 10-minute window. These are fixed windows, so requests close to a window boundary can straddle two limits. Only keyed hashes are stored, with cleanup on the next availability check after expiry (at most 48 hours for daily counters). Bodies are limited to 6,000 bytes while streaming, including when Content-Length is absent. The existing origin check, hidden honeypot, and reservation uniqueness remain in place.
+
+Test BotID from the actual booking page on a Vercel deployment: direct command-line API calls are expected to receive 403. Local unit tests cover accepted humans, rejected bots, verification outages, email/IP quotas, and oversized requests. Basic bot verification reduces scripted abuse but does not prove email ownership or stop every sophisticated browser-based bot; this version does not require email confirmation.
+
 Google Calendar sends invitation updates (`sendUpdates=all`) and requests a unique Google Meet conference per event. Guests may need to accept the invitation before it appears in their calendar. Some Google accounts can delay or refuse conference creation; the confirmation does not claim a link exists until Google provides it. No separate paid scheduler or email service is used. Standard Calendar API use is available at no additional cost; existing hosting/database limits still apply.
 
 Concurrent website bookings for the same slot use a unique database constraint, and repeat submissions use the same request ID. After an ambiguous Google write timeout, the reservation stays held and a retry looks for the original event instead of creating another. Manual/external calendar edits can still race with the final check because Google has no atomic free/busy-and-insert operation.

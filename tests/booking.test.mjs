@@ -5,11 +5,12 @@ import { DatabaseSync } from "node:sqlite";
 import { build } from "esbuild";
 
 async function load(path) {
-  const result = await build({ entryPoints: [new URL(path, import.meta.url).pathname], bundle: true, write: false, platform: "node", format: "esm" });
+  const result = await build({ entryPoints: [new URL(path, import.meta.url).pathname], bundle: true, write: false, platform: "node", format: "esm", external: ["next/headers"] });
   return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
 }
 const { candidateSlots, dateKey, overlaps, parseBooking } = await load("../lib/scheduling.ts");
 const { handleBooking } = await load("../lib/booking-api.ts");
+const { verifyBookingBrowser } = await load("../lib/booking-bot-protection.ts");
 const now = new Date("2026-09-19T12:00:00Z");
 const first = "2026-09-19T14:00:00.000Z";
 
@@ -79,12 +80,12 @@ test("unconfigured scheduler fails closed", async () => {
 });
 test("calendar failures never become available slots", async (t) => {
   const f = fixture(t, { calendarError: true });
-  const res = await handleBooking(new Request("https://portfolio.example/api/booking/availability"), f.env, now);
+  const res = await handleBooking(new Request("https://portfolio.example/api/booking/availability", { headers: { "CF-Connecting-IP": "192.0.2.10" } }), f.env, now);
   assert.equal(res.status, 503);
 });
 test("live availability excludes Calendar busy times", async (t) => {
   const f = fixture(t, { busy: [{ start: first, end: "2026-09-19T15:00:00.000Z" }] });
-  const res = await handleBooking(new Request("https://portfolio.example/api/booking/availability"), f.env, now);
+  const res = await handleBooking(new Request("https://portfolio.example/api/booking/availability", { headers: { "CF-Connecting-IP": "192.0.2.10" } }), f.env, now);
   const data = await res.json(); assert.equal(data.slots.length, 54); assert.equal(data.slots[0].start, "2026-09-19T15:00:00.000Z");
 });
 test("simultaneous visitors cannot reserve the same slot", async (t) => {
@@ -126,7 +127,7 @@ test("Vercel reservations use its trusted IP header and ignore forged Cloudflare
   const missing = await handleBooking(request(payload()), f.env, now);
   assert.equal(missing.status, 503);
   assert.equal(f.insertions(), 0);
-  for (let attempt = 0; attempt < 10; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     const res = await handleBooking(request(payload({ start: "2026-10-01T14:00:00.000Z" }), {
       "x-vercel-forwarded-for": "192.0.2.20", "CF-Connecting-IP": `192.0.2.${attempt}`,
     }), f.env, now);
@@ -136,4 +137,59 @@ test("Vercel reservations use its trusted IP header and ignore forged Cloudflare
   assert.equal(limited.status, 429);
   const accepted = await handleBooking(request(payload(), { "x-forwarded-for": "192.0.2.21" }), f.env, now);
   assert.equal(accepted.status, 201);
+});
+
+test("browser verification blocks bots, verified crawlers, bypasses, and verification errors", async () => {
+  const human = { isHuman: true, isBot: false, isVerifiedBot: false, bypassed: false };
+  assert.equal(await verifyBookingBrowser(async (options) => {
+    assert.equal(options.advancedOptions.checkLevel, "basic");
+    assert.equal(options.developmentOptions.isDevelopment, false);
+    return human;
+  }), null);
+  for (const result of [{ ...human, isBot: true }, { ...human, isVerifiedBot: true }, { ...human, bypassed: true }, {}]) {
+    const blocked = await verifyBookingBrowser(async () => result);
+    assert.equal(blocked.status, 403);
+    assert.equal(blocked.headers.get("cache-control"), "no-store");
+  }
+  const unavailable = await verifyBookingBrowser(async () => { throw new Error("verification outage"); });
+  assert.equal(unavailable.status, 503);
+  assert.equal((await unavailable.json()).code, "BROWSER_VERIFICATION_UNAVAILABLE");
+});
+
+test("email limit follows the recipient across IPs and Gmail aliases before Google is called", async (t) => {
+  const f = fixture(t, { busy: [{ start: first, end: "2026-09-19T15:00:00.000Z" }] });
+  const emails = ["person.name@gmail.com", "personname+one@gmail.com", "personname@googlemail.com", "person.name+two@gmail.com"];
+  for (let i = 0; i < emails.length; i++) {
+    const response = await handleBooking(request(payload({ email: emails[i] }), { "CF-Connecting-IP": `192.0.2.${i}` }), f.env, now);
+    assert.equal(response.status, i < 3 ? 409 : 429);
+  }
+  assert.equal(f.insertions(), 0);
+  const stored = JSON.stringify(f.env.DB.db.prepare("SELECT * FROM booking_rate_limits").all());
+  assert.ok(!stored.includes("person") && !stored.includes("gmail") && !stored.includes("192.0.2."));
+});
+
+test("availability floods are limited before they reach Google", async (t) => {
+  const f = fixture(t);
+  let calls = 0;
+  const googleFetch = globalThis.fetch;
+  t.mock.method(globalThis, "fetch", (...args) => { calls++; return googleFetch(...args); });
+  const availability = () => new Request("https://portfolio.example/api/booking/availability", { headers: { "CF-Connecting-IP": "192.0.2.30" } });
+  for (let i = 0; i < 60; i++) assert.equal((await handleBooking(availability(), f.env, now)).status, 200);
+  const before = calls;
+  assert.equal((await handleBooking(availability(), f.env, now)).status, 429);
+  assert.equal(calls, before);
+});
+
+test("malformed submissions consume IP quota and oversized bodies stop before Calendar access", async (t) => {
+  const f = fixture(t);
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => { calls++; throw new Error("Google must not be called"); });
+  const oversized = new Request("https://portfolio.example/api/booking/reserve", { method: "POST", headers: { "Content-Type": "application/json", Origin: "https://portfolio.example", "CF-Connecting-IP": "192.0.2.40" }, body: "x".repeat(6001) });
+  assert.equal((await handleBooking(oversized, f.env, now)).status, 413);
+  for (let i = 0; i < 5; i++) {
+    const response = await handleBooking(request(payload({ website: "spam.example" })), f.env, now);
+    assert.equal(response.status, 400);
+  }
+  assert.equal((await handleBooking(request(payload()), f.env, now)).status, 429);
+  assert.equal(calls, 0);
 });

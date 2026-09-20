@@ -80,7 +80,7 @@ function confirmation(event: GoogleEvent, slot: Slot) {
     meetStatus: event.hangoutLink ? "ready" : event.conferenceData?.createRequest?.status?.statusCode === "failure" ? "failed" : "pending" };
 }
 const escapeText = (text: string) => text.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
-async function rateLimit(request: Request, env: BookingEnv, now: Date) {
+function clientAddress(request: Request, env: BookingEnv) {
   // Trust the deployed platform's ingress header, never a visitor-supplied
   // Cloudflare header on Vercel. Only a keyed hash is stored.
   const address = env.VERCEL === "1"
@@ -90,28 +90,64 @@ async function rateLimit(request: Request, env: BookingEnv, now: Date) {
     if (!['localhost', '127.0.0.1'].includes(new URL(request.url).hostname)) throw new ApiError(503, unavailable);
     return;
   }
-  const bucket = Math.floor(now.getTime() / 3600000);
-  const key = await digest(`${bucket}:${address}`, env.BOOKING_HASH_SECRET!);
+  return address;
+}
+async function consumeLimit(env: BookingEnv, now: Date, scope: string, identity: string, windowMs: number, limit: number) {
+  const bucket = Math.floor(now.getTime() / windowMs);
+  const key = await digest(`${scope}:${bucket}:${identity}`, env.BOOKING_HASH_SECRET!);
   const row = await env.DB!.prepare("INSERT INTO booking_rate_limits (key, count, expires_at) VALUES (?, 1, ?) ON CONFLICT(key) DO UPDATE SET count = booking_rate_limits.count + 1 RETURNING count")
-    .bind(key, (bucket + 2) * 3600000).first<{ count: number }>();
-  if (!row || row.count > 10) throw new ApiError(429, "Too many booking attempts. Please try again later or email Arush.");
+    .bind(key, (bucket + 2) * windowMs).first<{ count: number }>();
+  if (!row || row.count > limit) throw new ApiError(429, "Too many requests. Please try again later or email Arush to arrange a call.");
+}
+async function rateLimit(request: Request, env: BookingEnv, now: Date, availability = false) {
+  const address = clientAddress(request, env);
+  if (!address) return;
+  if (availability) {
+    await consumeLimit(env, now, "availability", address, 10 * 60000, 60);
+  } else {
+    await consumeLimit(env, now, "reserve-burst", address, 10 * 60000, 5);
+    await consumeLimit(env, now, "reserve-hour", address, 3600000, 10);
+  }
+}
+async function readBookingBody(request: Request) {
+  const maxBytes = 6000;
+  if (Number(request.headers.get("content-length")) > maxBytes) throw new ApiError(413, "Please shorten your message.");
+  const reader = request.body?.getReader();
+  if (!reader) throw new ApiError(400, "Please check your booking details.");
+  const chunks: Uint8Array[] = [];
+  let length = 0;
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > maxBytes) {
+        await reader.cancel();
+        throw new ApiError(413, "Please shorten your message.");
+      }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const body = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { body.set(chunk, offset); offset += chunk.length; }
+  return new TextDecoder().decode(body);
 }
 
 async function book(request: Request, env: BookingEnv, now: Date) {
   if (request.headers.get("origin") !== new URL(request.url).origin) throw new ApiError(403, "Please book directly from this website.");
   if (!request.headers.get("content-type")?.startsWith("application/json")) throw new ApiError(415, "Please use the booking form.");
-  const raw = await request.text();
-  if (raw.length > 6000) throw new ApiError(413, "Please shorten your message.");
+  await rateLimit(request, env, now);
+  const raw = await readBookingBody(request);
   let body: unknown;
   try { body = JSON.parse(raw); } catch { throw new ApiError(400, "Please check your booking details."); }
   const input = parseBooking(body);
   if (!input) throw new ApiError(400, "Please enter a valid name, email, and time.");
   const fingerprint = await digest(JSON.stringify(input), env.BOOKING_HASH_SECRET!);
-  await rateLimit(request, env, now);
   const existing = await env.DB!.prepare("SELECT * FROM call_bookings WHERE request_id = ?").bind(input.requestId).first<StoredBooking>();
   if (existing && existing.fingerprint !== fingerprint) throw new ApiError(409, "This booking request has changed. Please refresh the page.");
-  const token = await accessToken(env);
   if (existing) {
+    const token = await accessToken(env);
     const event = await getEvent(env, token, existing.event_id);
     if (event && event.status !== "cancelled") {
       await env.DB!.prepare("UPDATE call_bookings SET state = 'confirmed' WHERE request_id = ?").bind(input.requestId).run();
@@ -122,6 +158,13 @@ async function book(request: Request, env: BookingEnv, now: Date) {
   }
   const slot = candidateSlots(now).find((s) => s.start === input.start);
   if (!slot) throw new ApiError(409, "That time is no longer available. Please choose another.");
+  // Normalize Gmail aliases to one private rate-limit identity. The actual
+  // invitation still goes to the exact address supplied by the visitor.
+  const [local, domain] = input.email.split("@");
+  const emailIdentity = ["gmail.com", "googlemail.com"].includes(domain)
+    ? `${local.split("+")[0].replaceAll(".", "")}@gmail.com` : input.email;
+  await consumeLimit(env, now, "reserve-email", emailIdentity, 86400000, 3);
+  const token = await accessToken(env);
   const busy = await busyTimes(env, token, [slot]);
   if (busy.some((b) => overlaps(slot, b))) throw new ApiError(409, "That time was just taken. Please choose another.");
   const eventId = crypto.randomUUID().replaceAll("-", "");
@@ -171,6 +214,7 @@ export async function handleBooking(request: Request, env: BookingEnv, now = new
     if (!configured(env)) return json({ error: unavailable }, 503);
     if (path === "/api/booking/reserve" && request.method === "POST") return await book(request, env, now);
     if (path === "/api/booking/availability" && request.method === "GET") {
+      await rateLimit(request, env, now, true);
       const slots = candidateSlots(now);
       const token = await accessToken(env);
       const busy = await busyTimes(env, token, slots);
