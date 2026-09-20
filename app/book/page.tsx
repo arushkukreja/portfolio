@@ -1,6 +1,6 @@
+import { HomeLink } from "@/components/home-link";
 import type { Metadata } from "next";
 import { LegalLinks } from "@/components/legal-links";
-import Link from "next/link";
 import { BookingForm } from "../../components/booking-form";
 import "./booking.css";
 
@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Book a call — Arush Kukreja", desc
 
 export default function BookPage() {
   return <main className="booking-page">
-    <header className="booking-header"><Link className="monogram" href="/" aria-label="Arush Kukreja, home">AK<span>.</span></Link><Link href="/">← Back to portfolio</Link></header>
+    <header className="booking-header"><HomeLink className="monogram" aria-label="Arush Kukreja, home">AK<span>.</span></HomeLink><HomeLink>← Back to portfolio</HomeLink></header>
     <div className="booking-layout">
       <aside className="booking-intro">
         <p className="booking-eyebrow">LET’S CONNECT</p>

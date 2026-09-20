@@ -1,5 +1,5 @@
+import { HomeLink } from "@/components/home-link";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { LegalLinks } from "@/components/legal-links";
 import "../booking.css";
 
@@ -12,7 +12,7 @@ export default function TermsPage() {
   return (
     <main className="booking-page">
       <article className="booking-privacy">
-        <Link href="/">← Back to portfolio</Link>
+        <HomeLink>← Back to portfolio</HomeLink>
         <h1>Terms of service</h1>
         <p className="legal-date">Effective September 19, 2026</p>
         <p>These terms apply to arushkukreja.com, the personal portfolio and call-booking service operated by Arush Kukreja. By submitting a booking, you agree to these terms. If you do not agree, please do not submit a booking. You can contact Arush by email instead.</p>
@@ -47,7 +47,7 @@ export default function TermsPage() {
         <p>These terms may be updated as the website or service changes. Updates will be published here with a revised effective date and apply to bookings made after that date.</p>
         <p>For questions about these terms or a booking, email <a href="mailto:arushkukrejaa@gmail.com">arushkukrejaa@gmail.com</a>.</p>
       </article>
-      <footer className="booking-footer"><Link href="/">Arush Kukreja</Link><LegalLinks /></footer>
+      <footer className="booking-footer"><HomeLink>Arush Kukreja</HomeLink><LegalLinks /></footer>
     </main>
   );
 }
