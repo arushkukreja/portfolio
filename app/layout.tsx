@@ -19,10 +19,6 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title,
     description,
-    icons: {
-      icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-      shortcut: "/favicon.svg",
-    },
     openGraph: {
       title,
       description,
@@ -43,6 +39,8 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={cn("dark font-sans", geist.variable)}>
       <head>
+        <link rel="icon" type="image/png" sizes="120x120" href="/favicon.png?v=2" />
+        <link rel="icon" type="image/svg+xml" sizes="any" href="/favicon.svg?v=2" />
         <meta name="google-site-verification" content="wFoNOMwioYoqw4JbzKGmoieHNwbw43CCX0YQj0zq2gc" />
       </head>
       <body>{children}</body>
